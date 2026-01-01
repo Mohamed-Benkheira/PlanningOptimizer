@@ -25,7 +25,7 @@ class RoomFactory extends Factory
 
         return [
             'name' => $type . ' ' . $this->faker->unique()->numberBetween(1, 100),
-            'code' => strtoupper(substr($type, 0, 1)) . $this->faker->unique()->numberBetween(100, 999),
+            'code' => strtoupper(substr($type, 0, 1)) . $this->faker->numberBetween(100, 9999),
             'type' => $type,
             'capacity' => $capacity,
             'building' => $this->faker->randomElement(['Bloc A', 'Bloc B', 'Bloc C']),

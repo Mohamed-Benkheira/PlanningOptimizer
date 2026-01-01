@@ -21,10 +21,9 @@ class RealisticUniversitySeeder extends Seeder
 {
     public function run(): void
     {
-        // Increase memory for bulk operations
-        ini_set('memory_limit', '1024M');
+        ini_set('memory_limit', '2048M'); // Bump memory for 130k rows
 
-        // 1. Reference Data
+        // ... [Reference Data: Year, Semester, Session, Levels code is same] ...
         $year = AcademicYear::firstOrCreate(['code' => '2025-2026'], ['is_active' => true]);
         $s1 = Semester::firstOrCreate(['code' => 'S1'], ['name' => 'Semester 1']);
 
@@ -37,7 +36,6 @@ class RealisticUniversitySeeder extends Seeder
             'ends_on' => '2026-01-25',
         ]);
 
-        // Levels Config (The Heavy Structure)
         $levelsConfig = [
             'L1' => ['cycle' => 'Bachelor', 'year' => 1, 'groups' => [5, 10]],
             'L2' => ['cycle' => 'Bachelor', 'year' => 2, 'groups' => [5, 7]],
@@ -47,13 +45,9 @@ class RealisticUniversitySeeder extends Seeder
         ];
 
         foreach ($levelsConfig as $code => $conf) {
-            Level::firstOrCreate(
-                ['code' => $code],
-                ['cycle' => $conf['cycle'], 'year_number' => $conf['year']]
-            );
+            Level::firstOrCreate(['code' => $code], ['cycle' => $conf['cycle'], 'year_number' => $conf['year']]);
         }
 
-        // Departments (7 Depts * 3 Specs each = 21 Specs)
         $departmentsData = [
             'Computer Science' => ['Software Engineering', 'Artificial Intelligence', 'Cyber Security'],
             'Mathematics' => ['Applied Mathematics', 'Statistics & Data', 'Pure Mathematics'],
@@ -73,9 +67,7 @@ class RealisticUniversitySeeder extends Seeder
                 $deptCode = strtoupper(substr(str_replace(' ', '', $deptName), 0, 3));
                 $dept = Department::create(['name' => $deptName, 'code' => $deptCode]);
 
-                // 2. Professors (120 per Dept to handle ~10 groups each max)
                 $professors = Professor::factory(120)->create(['department_id' => $dept->id]);
-                // Workload tracker in memory: [prof_id => current_group_count]
                 $profWorkload = $professors->pluck('id')->mapWithKeys(fn($id) => [$id => 0])->toArray();
 
                 foreach ($specialties as $specName) {
@@ -88,14 +80,13 @@ class RealisticUniversitySeeder extends Seeder
                     foreach ($levelsConfig as $lvlCode => $conf) {
                         $level = Level::where('code', $lvlCode)->first();
 
-                        // Modules: 6-8 per formation
-                        $modules = Module::factory(rand(6, 8))->create([
+                        // UPDATE: 8 to 9 Modules per formation (Maxing out the constraint)
+                        $modules = Module::factory(rand(8, 9))->create([
                             'specialty_id' => $spec->id,
                             'level_id' => $level->id,
-                            'semester' => 1, // Only S1 active
+                            'semester' => 1,
                         ]);
 
-                        // Groups: Dynamic Count
                         $groupCount = rand($conf['groups'][0], $conf['groups'][1]);
 
                         for ($i = 1; $i <= $groupCount; $i++) {
@@ -104,34 +95,27 @@ class RealisticUniversitySeeder extends Seeder
                                 'specialty_id' => $spec->id,
                                 'level_id' => $level->id,
                                 'academic_year_id' => $year->id,
-                                'capacity' => rand(20, 25), // Reduced size 20-25
+                                'capacity' => rand(20, 25),
                             ]);
 
-                            // Attach modules to group
                             $group->modules()->attach($modules->pluck('id'));
 
-                            // --- SMART PROFESSOR ASSIGNMENT (Load Balanced) ---
+                            // Prof Assignment Logic (Same as before)
                             $assignedProfs = [];
                             $attempts = 0;
-
-                            // We need ~4 professors per group (one for every ~2 modules)
                             while (count($assignedProfs) < 4 && $attempts < 50) {
                                 $attempts++;
                                 $candidateId = array_rand($profWorkload);
-
-                                // Enforce Constraint: Max 10 Groups
                                 if ($profWorkload[$candidateId] < 10 && !in_array($candidateId, $assignedProfs)) {
                                     $assignedProfs[] = $candidateId;
                                     $profWorkload[$candidateId]++;
                                 }
                             }
-
                             if (!empty($assignedProfs)) {
                                 $group->professors()->attach($assignedProfs);
                             }
-                            // --------------------------------------------------
 
-                            // Create Students
+                            // Students
                             $students = Student::factory($group->capacity)->create(['group_id' => $group->id]);
 
                             // Inscriptions (Bulk)
@@ -157,16 +141,13 @@ class RealisticUniversitySeeder extends Seeder
                 }
             }
 
-            // 3. Rooms (Critical for Optimization Constraints)
-            // 40 rooms of size 20 (Conflict Generators!)
+            // Rooms (Same Config)
             Room::factory(40)->create(['type' => 'Classroom', 'capacity' => 20]);
-            // 20 rooms of size 30 (Fits small groups)
             Room::factory(20)->create(['type' => 'Large Classroom', 'capacity' => 30]);
-            // 10 Amphis (For merged exams)
             Room::factory(10)->create(['type' => 'Amphitheater', 'capacity' => 200]);
 
             DB::commit();
-            $this->command->info("Seeder Finished: 7 Depts, 21 Specs, ~13k Students.");
+            $this->command->info("Seeder Finished. Modules/Student increased to 8-9.");
         } catch (\Throwable $e) {
             DB::rollBack();
             throw $e;
