@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class ModuleFactory extends Factory
 {
+    private static int $counter = 1000;
+
     /**
      * Define the model's default state.
      *
@@ -18,13 +20,13 @@ class ModuleFactory extends Factory
     {
         $subjects = ['Algorithmique', 'Analyse', 'Algèbre', 'Probabilités', 'Bases de Données', 'Réseaux', 'Systèmes', 'Droit', 'Gestion', 'Marketing', 'Physique', 'Chimie'];
 
+        self::$counter++;
+
         return [
             'name' => $this->faker->randomElement($subjects) . ' ' . $this->faker->randomDigitNotNull,
-            'code' => strtoupper($this->faker->lexify('???')) . $this->faker->unique()->numberBetween(100, 999),
+            'code' => strtoupper($this->faker->lexify('???')) . self::$counter, // FIXED: counter instead of unique()
             'credits' => $this->faker->randomElement([2, 3, 4, 6]),
-            'semester' => 1, // Default, usually overridden by Seeder
-            // specialty_id and level_id passed by Seeder
+            'semester' => 1,
         ];
     }
-
 }
