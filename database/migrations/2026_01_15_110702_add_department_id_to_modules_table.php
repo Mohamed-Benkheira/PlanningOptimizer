@@ -17,12 +17,11 @@ return new class extends Migration {
                 ->onDelete('restrict');
         });
 
-        // Populate from specialties (automatic data migration)
+        // Populate from specialties - MySQL compatible syntax
         DB::statement("
             UPDATE modules m 
-            SET department_id = s.department_id 
-            FROM specialties s 
-            WHERE m.specialty_id = s.id
+            INNER JOIN specialties s ON m.specialty_id = s.id 
+            SET m.department_id = s.department_id
         ");
 
         // Make NOT NULL after population

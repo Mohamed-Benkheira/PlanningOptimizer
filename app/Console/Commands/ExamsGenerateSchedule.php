@@ -158,10 +158,11 @@ class ExamsGenerateSchedule extends Command
 
     private function buildConflictGraph(int $examSessionId, array $examUnits): array
     {
+        // FIXED: MySQL-compatible syntax (replaced ::text and || with CONCAT)
         $conflictRows = DB::select("
             SELECT
-                i1.module_id::text || ':' || s.group_id::text AS a,
-                i2.module_id::text || ':' || s.group_id::text AS b,
+                CONCAT(i1.module_id, ':', s.group_id) AS a,
+                CONCAT(i2.module_id, ':', s.group_id) AS b,
                 COUNT(DISTINCT i1.student_id) AS shared_students
             FROM inscriptions i1
             INNER JOIN inscriptions i2

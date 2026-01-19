@@ -384,19 +384,20 @@ class RealisticUniversitySeeder extends Seeder
             $this->command->newLine();
             $this->command->info("📈 Student Distribution by Department:");
             $deptStats = DB::select("
-                SELECT 
-                    d.name,
-                    COUNT(DISTINCT s.id) as students,
-                    COUNT(DISTINCT sp.id) as specialties,
-                    COUNT(DISTINCT g.id) as groups,
-                    ROUND(AVG(g.capacity), 1) as avg_group_size
-                FROM departments d
-                LEFT JOIN specialties sp ON sp.department_id = d.id
-                LEFT JOIN groups g ON g.specialty_id = sp.id
-                LEFT JOIN students s ON s.group_id = g.id
-                GROUP BY d.id, d.name
-                ORDER BY students DESC
-            ");
+    SELECT 
+        d.name,
+        COUNT(DISTINCT s.id) as students,
+        COUNT(DISTINCT sp.id) as specialties,
+        COUNT(DISTINCT g.id) as total_groups,
+        ROUND(AVG(g.capacity), 1) as avg_group_size
+    FROM departments d
+    LEFT JOIN specialties sp ON sp.department_id = d.id
+    LEFT JOIN `groups` g ON g.specialty_id = sp.id
+    LEFT JOIN students s ON s.group_id = g.id
+    GROUP BY d.id, d.name
+    ORDER BY students DESC
+");
+
 
             $this->command->table(
                 ['Department', 'Students', 'Specialties', 'Groups', 'Avg Group Size'],
@@ -404,7 +405,7 @@ class RealisticUniversitySeeder extends Seeder
                     $r->name,
                     number_format($r->students),
                     $r->specialties,
-                    $r->groups,
+                    $r->total_groups, // Changed from $r->groups
                     $r->avg_group_size,
                 ])
             );

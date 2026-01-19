@@ -1,0 +1,41 @@
+[90m= [39m[34;4mApp\Models\User[39;24m {#7562
+    [34mname[39m: "[32mExam Administrator[39m",
+    [34memail[39m: "[32madmin@university.edu[39m",
+    #[33mpassword[39m: "[32m$2y$12$bKr/5Er5s4ebDcDyzhJ1FuZW0O/0BG3KiKOpDJIYIeEAQZQXj20eS[39m",
+    [34mrole[39m: "[32madmin[39m",
+    [34mdepartment_id[39m: [36mnull[39m,
+    [34mupdated_at[39m: "[32m2026-01-19 20:14:56[39m",
+    [34mcreated_at[39m: "[32m2026-01-19 20:14:56[39m",
+    [34mid[39m: [35m2[39m,
+  }
+
+[90m= [39m[34;4mApp\Models\User[39;24m {#7559
+    [34mname[39m: "[32mExam Administrator[39m",
+    [34memail[39m: "[32madmin@university.edu[39m",
+    #[33mpassword[39m: "[32m$2y$12$A6VAleej4UVALBODeRbAxOTBK/mjyZe0GrK8ztt3jafqDV0NgSd8a[39m",
+    [34mrole[39m: "[32mexam_admin[39m",
+    [34mdepartment_id[39m: [36mnull[39m,
+    [34mupdated_at[39m: "[32m2026-01-19 23:06:31[39m",
+    [34mcreated_at[39m: "[32m2026-01-19 23:06:31[39m",
+    [34mid[39m: [35m2[39m,
+  }
+
+[90m= [39m[34;4mApp\Models\User[39;24m {#7559
+    [34mname[39m: "[32mDean[39m",
+    [34memail[39m: "[32mdean@university.edu[39m",
+    #[33mpassword[39m: "[32m$2y$12$vMvtywbjtaj40.xMfr6mQuKvAzDc.9T3IqH81r6cQCGc9iWwvoJwG[39m",
+    [34mrole[39m: "[32mdean[39m",
+    [34mdepartment_id[39m: [36mnull[39m,
+    [34mupdated_at[39m: "[32m2026-01-19 23:07:11[39m",
+    [34mcreated_at[39m: "[32m2026-01-19 23:07:11[39m",
+    [34mid[39m: [35m3[39m,
+  }
+
+[90m= [39m[34;4mApp\Models\Department[39;24m {#7490
+    [34mid[39m: [35m1[39m,
+    [34mname[39m: "[32mComputer Science[39m",
+    [34mcode[39m: "[32mCOM[39m",
+    [34mcreated_at[39m: "[32m2026-01-19 23:04:16[39m",
+    [34mupdated_at[39m: "[32m2026-01-19 23:04:16[39m",
+  }
+

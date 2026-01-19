@@ -3,20 +3,23 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     public function up(): void
     {
         // Critical index for conflict detection performance (10-20x speedup)
-        DB::statement("
-            CREATE INDEX IF NOT EXISTS inscriptions_conflict_lookup 
-            ON inscriptions(exam_session_id, student_id, module_id)
-        ");
+        Schema::table('inscriptions', function (Blueprint $table) {
+            $table->index(
+                ['exam_session_id', 'student_id', 'module_id'],
+                'inscriptions_conflict_lookup'
+            );
+        });
     }
 
     public function down(): void
     {
-        DB::statement("DROP INDEX IF EXISTS inscriptions_conflict_lookup");
+        Schema::table('inscriptions', function (Blueprint $table) {
+            $table->dropIndex('inscriptions_conflict_lookup');
+        });
     }
 };

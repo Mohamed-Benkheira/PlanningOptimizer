@@ -374,11 +374,12 @@ class ExamsTestComplete extends Command
         $this->info("5. RESOURCE UTILIZATION");
         $this->line(str_repeat("-", 60));
 
+        // FIXED: Changed CAST(... AS NUMERIC) to CAST(... AS DECIMAL(10,2)) for MySQL compatibility
         $roomStats = DB::select("
             SELECT 
                 COUNT(DISTINCT r.id) as total_rooms,
                 COUNT(DISTINCT CASE WHEN ser.id IS NOT NULL THEN r.id END) as used_rooms,
-                ROUND(AVG(CAST(ser.seats_allocated AS NUMERIC) / NULLIF(r.capacity, 0) * 100), 1) as avg_fill_rate
+                ROUND(AVG(CAST(ser.seats_allocated AS DECIMAL(10,2)) / NULLIF(r.capacity, 0) * 100), 1) as avg_fill_rate
             FROM rooms r
             LEFT JOIN scheduled_exam_rooms ser ON ser.room_id = r.id
             LEFT JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id AND se.exam_session_id = ?
