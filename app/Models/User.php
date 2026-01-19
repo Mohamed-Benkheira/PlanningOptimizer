@@ -97,4 +97,17 @@ class User extends Authenticatable implements FilamentUser
         return $this->role === 'student';
     }
 
+
+    // 👇 ADD THIS RELATIONSHIP
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    // 👇 ADD HELPER METHOD
+    public function canSeeAllDepartments(): bool
+    {
+        return $this->isSuperAdmin() || $this->isDean() || $this->isExamAdmin();
+    }
+
 }

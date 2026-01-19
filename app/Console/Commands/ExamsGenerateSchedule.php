@@ -19,16 +19,17 @@ class ExamsGenerateSchedule extends Command
     private array $professorWorkload = [];
     private array $conflictStatistics = [];
     private array $examsPerSlot = [];
-
-    // SINGLE SOURCE OF TRUTH for room availability
-    private array $roomUsagePerSlot = []; // [slot_id][room_id] => seats_used
+    private array $roomUsagePerSlot = [];
 
     public function handle(): int
     {
         $startTime = microtime(true);
         $examSessionId = (int) $this->argument('exam_session_id');
 
-        $this->info("🚀 Starting schedule generation for exam_session_id={$examSessionId}");
+        $this->line("");
+        $this->info("EXAM SCHEDULE GENERATION");
+        $this->line("Session ID: {$examSessionId}");
+        $this->line(str_repeat("=", 60));
 
         $timeSlots = TimeSlot::query()
             ->where('exam_session_id', $examSessionId)
@@ -37,29 +38,33 @@ class ExamsGenerateSchedule extends Command
             ->get();
 
         if ($timeSlots->isEmpty()) {
-            $this->error("❌ No time_slots found. Run exams:generate-slots first.");
+            $this->error("[ERROR] No time slots found");
+            $this->line("ACTION: Run 'Generate Time Slots' first");
             return self::FAILURE;
         }
 
         $slotsByDate = $timeSlots->groupBy('exam_date');
-        $this->info("📅 Available: {$slotsByDate->count()} days × 4 slots = " . $timeSlots->count() . " total slots");
+        $totalSlots = $timeSlots->count();
+        $this->line("");
+        $this->line("Available time slots: {$slotsByDate->count()} days x 4 slots = {$totalSlots} total");
 
         $this->loadMetadata();
         $examUnits = $this->buildExamUnits($examSessionId);
 
         if (empty($examUnits)) {
-            $this->warn("⚠️  No exam units with inscriptions found.");
+            $this->warn("[WARNING] No exams found to schedule");
             return self::SUCCESS;
         }
 
-        $this->info("📊 Total exams to schedule: " . count($examUnits));
+        $examCount = count($examUnits);
+        $this->line("Total exams to schedule: {$examCount}");
+        $this->line("");
 
         [$exams, $neighbors] = $this->buildConflictGraph($examSessionId, $examUnits);
         $exams = $this->sortExamsByDifficulty($exams);
 
         $this->initializeProfessorTracking();
 
-        // Initialize room usage tracking
         foreach ($timeSlots as $slot) {
             $this->examsPerSlot[$slot->id] = [];
             $this->roomUsagePerSlot[$slot->id] = [];
@@ -67,6 +72,7 @@ class ExamsGenerateSchedule extends Command
 
         $this->cleanPreviousSchedule($examSessionId);
 
+        $this->line("Processing schedule optimization...");
         $result = $this->greedySchedule(
             $exams,
             $neighbors,
@@ -76,7 +82,8 @@ class ExamsGenerateSchedule extends Command
         );
 
         if (!$result['success']) {
-            $this->error("❌ " . $result['message']);
+            $this->line("");
+            $this->error("[FAILED] " . $result['message']);
             $this->displayConflictStatistics();
             return self::FAILURE;
         }
@@ -124,7 +131,9 @@ class ExamsGenerateSchedule extends Command
             $this->professorsByDept[$deptId][] = (int) $prof->id;
         }
 
-        $this->info("✅ Loaded: " . count($this->roomMetadata) . " rooms, " . count($profs) . " professors");
+        $roomCount = count($this->roomMetadata);
+        $profCount = count($profs);
+        $this->line("Resources loaded: {$roomCount} rooms, {$profCount} professors");
     }
 
     private function buildExamUnits(int $examSessionId): array
@@ -259,12 +268,11 @@ class ExamsGenerateSchedule extends Command
             $placed = false;
 
             foreach ($slotsByDate as $examDate => $slotsOfDay) {
-                // Check day-level conflicts
                 $conflictOnDate = false;
                 foreach ($neighbors[$examKey] ?? [] as $nb => $_) {
                     if (($assignedDate[$nb] ?? null) === $examDate) {
                         $conflictOnDate = true;
-                        $this->trackConflict($examKey, $examDate, 'student_conflict_on_day');
+                        $this->trackConflict($examKey, $examDate, 'Student has conflicting exam on same day');
                         break;
                     }
                 }
@@ -274,7 +282,6 @@ class ExamsGenerateSchedule extends Command
                 }
 
                 foreach ($slotsOfDay as $slot) {
-                    // Check slot-level conflicts
                     $conflictInSlot = false;
                     foreach ($this->examsPerSlot[$slot->id] as $scheduledExamKey => $_) {
                         if (isset($neighbors[$examKey][$scheduledExamKey])) {
@@ -287,14 +294,12 @@ class ExamsGenerateSchedule extends Command
                         continue;
                     }
 
-                    // Try to allocate rooms
                     $roomResult = $this->tryAllocateRooms($needed, $deptId, $slot->id, $examKey);
 
                     if ($roomResult === null) {
                         continue;
                     }
 
-                    // Try to assign professors
                     $professors = $this->findAvailableProfessors(
                         $deptId,
                         $roomResult['invigilators'],
@@ -304,14 +309,12 @@ class ExamsGenerateSchedule extends Command
                     );
 
                     if ($professors === null) {
-                        // Rollback room allocation
                         foreach ($roomResult['allocation'] as $roomId => $seats) {
                             $this->roomUsagePerSlot[$slot->id][$roomId] -= $seats;
                         }
                         continue;
                     }
 
-                    // SUCCESS - Record placement
                     $assignedDate[$examKey] = $examDate;
                     $this->examsPerSlot[$slot->id][$examKey] = $exam;
                     $placed = true;
@@ -356,7 +359,7 @@ class ExamsGenerateSchedule extends Command
                 $this->newLine();
                 return [
                     'success' => false,
-                    'message' => "Could not place exam {$examKey} (Module {$exam['module_id']}, Group {$exam['group_id']}, {$exam['student_count']} students)"
+                    'message' => "Unable to schedule: Module {$exam['module_id']}, Group {$exam['group_id']} ({$exam['student_count']} students)"
                 ];
             }
 
@@ -378,7 +381,6 @@ class ExamsGenerateSchedule extends Command
     {
         $tiers = ['own' => [], 'shared' => [], 'overflow' => []];
 
-        // Calculate available capacity for each room
         foreach ($this->roomMetadata as $roomId => $room) {
             $used = $this->roomUsagePerSlot[$slotId][$roomId] ?? 0;
             $available = $room['capacity'] - $used;
@@ -399,7 +401,6 @@ class ExamsGenerateSchedule extends Command
         $allocation = [];
         $left = $needed;
 
-        // Try to fill from priority tiers
         foreach (['own', 'shared', 'overflow'] as $tier) {
             if ($left <= 0)
                 break;
@@ -414,7 +415,6 @@ class ExamsGenerateSchedule extends Command
                 $allocation[$roomId] = $take;
                 $left -= $take;
 
-                // Update usage tracking
                 if (!isset($this->roomUsagePerSlot[$slotId][$roomId])) {
                     $this->roomUsagePerSlot[$slotId][$roomId] = 0;
                 }
@@ -423,12 +423,11 @@ class ExamsGenerateSchedule extends Command
         }
 
         if ($left > 0) {
-            // Rollback
             foreach ($allocation as $roomId => $seats) {
                 $this->roomUsagePerSlot[$slotId][$roomId] -= $seats;
             }
 
-            $this->trackConflict($examKey, $slotId, 'insufficient_room_capacity');
+            $this->trackConflict($examKey, $slotId, 'Insufficient room capacity available');
             return null;
         }
 
@@ -448,7 +447,7 @@ class ExamsGenerateSchedule extends Command
         $candidates = $this->professorsByDept[$deptId] ?? [];
 
         if (count($candidates) < $invigilatorsNeeded) {
-            $this->trackConflict($examKey, $slotId, 'insufficient_professors');
+            $this->trackConflict($examKey, $slotId, 'Insufficient professors in department');
             return null;
         }
 
@@ -470,7 +469,7 @@ class ExamsGenerateSchedule extends Command
         }
 
         if (count($available) < $invigilatorsNeeded) {
-            $this->trackConflict($examKey, $slotId, 'professors_maxed_out');
+            $this->trackConflict($examKey, $slotId, 'Professors at maximum daily workload');
             return null;
         }
 
@@ -504,13 +503,21 @@ class ExamsGenerateSchedule extends Command
         if (empty($this->conflictStatistics))
             return;
 
-        $this->newLine();
-        $this->warn("📊 Why scheduling failed:");
+        $this->line("");
+        $this->line("SCHEDULING FAILURE ANALYSIS");
+        $this->line(str_repeat("-", 60));
 
         foreach ($this->conflictStatistics as $reason => $data) {
             $examples = implode(', ', array_slice($data['examples'], 0, 2));
-            $this->line("  • {$reason}: {$data['count']}x (e.g. {$examples})");
+            $this->line("- {$reason}: {$data['count']} occurrences");
+            $this->line("  Examples: {$examples}");
         }
+
+        $this->line("");
+        $this->line("RECOMMENDATIONS:");
+        $this->line("- Increase exam session duration (add more days)");
+        $this->line("- Add additional rooms to capacity");
+        $this->line("- Assign more professors to departments");
     }
 
     private function persistSchedule(array $scheduledExams, array $scheduledRooms, array $scheduledProfessors, int $examSessionId): void
@@ -554,18 +561,25 @@ class ExamsGenerateSchedule extends Command
             DB::table('scheduled_exam_professors')->insert($finalProfRows);
         });
 
-        $this->info("✅ Schedule persisted");
+        $this->line("");
+        $this->info("[SUCCESS] Schedule saved to database");
     }
 
     private function reportPerformance(float $duration, int $examSessionId, int $examCount): void
     {
-        $this->newLine();
-        $this->info("⏱️  {$duration}s for {$examCount} exams");
+        $this->line("");
+        $this->line(str_repeat("=", 60));
+        $this->info("GENERATION COMPLETE");
+        $this->line(str_repeat("=", 60));
+        $this->line("");
+        $this->line("Processing time: {$duration} seconds");
+        $this->line("Exams scheduled: {$examCount}");
 
         if ($duration > 45) {
-            $this->warn("⚠️  >45s target. Optimize conflict detection query.");
+            $this->warn("[WARNING] Processing time exceeded 45 second target");
+            $this->line("Consider optimizing for better performance");
         } else {
-            $this->info("✅ <45s target achieved!");
+            $this->info("[SUCCESS] Processing time within 45 second target");
         }
 
         DB::table('performance_logs')->insert([
@@ -589,8 +603,14 @@ class ExamsGenerateSchedule extends Command
         $min = min($workloads);
         $max = max($workloads);
         $avg = round(array_sum($workloads) / count($workloads), 2);
+        $variance = $max - $min;
 
-        $this->newLine();
-        $this->info("👥 Professor Workload: min={$min}, max={$max}, avg={$avg}, variance=" . ($max - $min));
+        $this->line("");
+        $this->line("PROFESSOR WORKLOAD DISTRIBUTION:");
+        $this->line("  Minimum: {$min} surveillances");
+        $this->line("  Maximum: {$max} surveillances");
+        $this->line("  Average: {$avg} surveillances");
+        $this->line("  Variance: {$variance}");
+        $this->line("");
     }
 }
