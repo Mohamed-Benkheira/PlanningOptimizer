@@ -26,7 +26,10 @@ class GroupExamScheduleExplorer extends Page implements HasTable
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
     protected string $view = 'filament.pages.group-exam-schedule-explorer';
 
-    // Page state (Schema writes into these)
+    // THIS IS KEY: Use simple layout instead of Filament's default
+
+    protected static bool $shouldRegisterNavigation = false;
+
     public ?int $exam_session_id = null;
     public ?int $department_id = null;
     public ?int $level_id = null;
@@ -149,7 +152,6 @@ class GroupExamScheduleExplorer extends Page implements HasTable
                     return $q->whereRaw('1=0');
                 }
 
-                // extra safety: ensure timeSlot also belongs to the selected session
                 return $q
                     ->where('exam_session_id', $this->exam_session_id)
                     ->where('group_id', $this->group_id);

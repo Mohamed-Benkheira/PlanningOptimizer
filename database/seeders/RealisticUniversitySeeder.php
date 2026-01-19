@@ -36,7 +36,7 @@ class RealisticUniversitySeeder extends Seeder
             'name' => 'Winter Regular Session',
         ], [
             'starts_on' => '2026-01-10',
-            'ends_on' => '2026-01-25',
+            'ends_on' => '2026-01-31',
         ]);
 
         // OPTIMIZED: Fewer groups, larger capacity (20-30 students)

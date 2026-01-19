@@ -92,4 +92,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->role === self::ROLE_DEPARTMENT_HEAD;
     }
+    public function isStudent(): bool
+    {
+        return $this->role === 'student';
+    }
+
 }

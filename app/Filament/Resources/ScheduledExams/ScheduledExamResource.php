@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ScheduledExamResource extends Resource
 {
@@ -36,6 +37,27 @@ class ScheduledExamResource extends Resource
             //
         ];
     }
+    public static function getEloquentQuery(): Builder
+    {
+        // Get the standard query
+        $query = parent::getEloquentQuery();
+
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        // PDF Requirement: "Chef de département... Validation par département"
+        // If user is a Department Head, filter exams by their department ID
+        if ($user->isDepartmentHead()) {
+            return $query->whereHas('module', function (Builder $q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        // Dean and Exam Admin see everything ("Vue stratégique globale")
+        return $query;
+    }
+
+
 
     public static function getPages(): array
     {

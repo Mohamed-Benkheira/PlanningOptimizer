@@ -2,43 +2,50 @@
 
 namespace App\Policies;
 
-use App\Models\Professor;
 use App\Models\User;
-use App\Policies\Concerns\HandlesRoles;
+use App\Models\Professor;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ProfessorPolicy
 {
-    use HandlesRoles;
+    use HandlesAuthorization;
+
+    public function before(User $user, $ability)
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+    }
 
     public function viewAny(User $user): bool
     {
-        return $this->isFullAdmin($user) || $user->isDepartmentHead() || $user->isDean();
+        return $user->isExamAdmin()
+            || $user->isDean()
+            || $user->isDepartmentHead();
     }
 
     public function view(User $user, Professor $professor): bool
     {
+        // Dept Head sees only their own professors
+        if ($user->isDepartmentHead()) {
+            return $professor->department_id === $user->department_id;
+        }
         return true;
     }
 
+    // CREATE/UPDATE: Admin Examens manages resources ("Optimisation des ressources")
     public function create(User $user): bool
     {
-        return $this->isFullAdmin($user) || $user->isDepartmentHead();
+        return $user->isExamAdmin();
     }
 
     public function update(User $user, Professor $professor): bool
     {
-        if ($this->isFullAdmin($user))
-            return true;
-
-        if ($user->isDepartmentHead()) {
-            return $professor->department_id === $user->department_id;
-        }
-
-        return false;
+        return $user->isExamAdmin();
     }
 
     public function delete(User $user, Professor $professor): bool
     {
-        return $this->update($user, $professor);
+        return $user->isExamAdmin();
     }
 }

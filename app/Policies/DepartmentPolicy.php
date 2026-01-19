@@ -2,41 +2,43 @@
 
 namespace App\Policies;
 
-use App\Models\Department;
 use App\Models\User;
-use App\Policies\Concerns\HandlesRoles;
+use App\Models\Department;
+use Illuminate\Auth\Access\HandlesAuthorization;
 
 class DepartmentPolicy
 {
-    use HandlesRoles;
+    use HandlesAuthorization;
 
-    public function viewAny(User $user): bool
+    public function before(User $user, $ability)
     {
-        // Allow Dean and Dept Head to see the list of departments
-        return $this->isFullAdmin($user) || $user->isDean() || $user->isDepartmentHead();
-    }
-
-    public function view(User $user, Department $department): bool
-    {
-        if ($this->isFullAdmin($user) || $user->isDean()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
-        // Dept Head sees ONLY their own
-        return $user->isDepartmentHead() && $user->department_id === $department->id;
     }
 
+    // VIEW: Needed for "Vue stratégique" (Dean) and filtering (Admin/Dept Head)
+    public function viewAny(User $user): bool
+    {
+        return $user->isExamAdmin()
+            || $user->isDean()
+            || $user->isDepartmentHead();
+    }
+
+    // CREATE/UPDATE: Not in PDF functionalities for these actors. 
+    // Usually reserved for Super Admin (IT Support).
     public function create(User $user): bool
     {
-        return $this->isFullAdmin($user);
+        return false;
     }
 
     public function update(User $user, Department $department): bool
     {
-        return $this->isFullAdmin($user);
+        return false;
     }
 
     public function delete(User $user, Department $department): bool
     {
-        return $this->isFullAdmin($user);
+        return false;
     }
 }

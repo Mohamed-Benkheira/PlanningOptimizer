@@ -17,7 +17,6 @@ class ExamsTestComplete extends Command
     {
         $this->examSessionId = (int) $this->argument('exam_session_id');
 
-        // Initialize results array
         $this->results = [
             'passed' => 0,
             'failed' => 0,
@@ -25,10 +24,11 @@ class ExamsTestComplete extends Command
             'critical' => 0
         ];
 
-        $this->info("╔═══════════════════════════════════════════════════════════╗");
-        $this->info("║  EXAM SCHEDULING SYSTEM - COMPLETE TEST SUITE            ║");
-        $this->info("║  Session ID: {$this->examSessionId}                                            ║");
-        $this->info("╚═══════════════════════════════════════════════════════════╝\n");
+        $this->line("");
+        $this->line("EXAM SCHEDULE VALIDATION REPORT");
+        $this->line("Session ID: {$this->examSessionId}");
+        $this->line(str_repeat("=", 60));
+        $this->line("");
 
         // Run all tests
         $this->testDataIntegrity();
@@ -45,13 +45,11 @@ class ExamsTestComplete extends Command
         return $this->results['failed'] === 0 ? self::SUCCESS : self::FAILURE;
     }
 
-    // ============================================
-    // TEST 1: DATA INTEGRITY
-    // ============================================
     private function testDataIntegrity(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 1: DATA INTEGRITY ═══\n");
+        $this->line("");
+        $this->info("1. DATA INTEGRITY CHECK");
+        $this->line(str_repeat("-", 60));
 
         $checks = [
             'scheduled_exams' => DB::table('scheduled_exams')
@@ -71,9 +69,10 @@ class ExamsTestComplete extends Command
                 ->count(),
         ];
 
-        $this->line("Scheduled Exams:      {$checks['scheduled_exams']}");
-        $this->line("Room Allocations:     {$checks['scheduled_rooms']}");
-        $this->line("Professor Assignments: {$checks['scheduled_professors']}");
+        $this->line("Total scheduled exams: {$checks['scheduled_exams']}");
+        $this->line("Total room allocations: {$checks['scheduled_rooms']}");
+        $this->line("Total professor assignments: {$checks['scheduled_professors']}");
+        $this->line("");
 
         // Check orphans
         $orphanRooms = DB::select("
@@ -84,10 +83,10 @@ class ExamsTestComplete extends Command
         ")[0]->cnt;
 
         if ($orphanRooms > 0) {
-            $this->error("❌ Found {$orphanRooms} orphaned room allocations!");
+            $this->error("[FAIL] Found {$orphanRooms} orphaned room allocations");
             $this->results['failed']++;
         } else {
-            $this->info("✅ No orphaned records");
+            $this->info("[PASS] No orphaned records detected");
             $this->results['passed']++;
         }
 
@@ -100,10 +99,10 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId])[0]->cnt;
 
         if ($examsWithoutRooms > 0) {
-            $this->error("❌ {$examsWithoutRooms} exams have no room allocation!");
+            $this->error("[FAIL] {$examsWithoutRooms} exams missing room allocation");
             $this->results['failed']++;
         } else {
-            $this->info("✅ All exams have room allocations");
+            $this->info("[PASS] All exams have room allocations");
             $this->results['passed']++;
         }
 
@@ -116,21 +115,19 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId])[0]->cnt;
 
         if ($examsWithoutProfs > 0) {
-            $this->error("❌ {$examsWithoutProfs} exams have no professor assignment!");
+            $this->error("[FAIL] {$examsWithoutProfs} exams missing professor assignment");
             $this->results['failed']++;
         } else {
-            $this->info("✅ All exams have professor assignments");
+            $this->info("[PASS] All exams have professor assignments");
             $this->results['passed']++;
         }
     }
 
-    // ============================================
-    // TEST 2: HARD CONSTRAINTS (PROJECT SPEC)
-    // ============================================
     private function testHardConstraints(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 2: HARD CONSTRAINTS (Project Requirements) ═══\n");
+        $this->line("");
+        $this->info("2. MANDATORY CONSTRAINTS VALIDATION");
+        $this->line(str_repeat("-", 60));
 
         // CONSTRAINT 1: Max 1 exam per student per day
         $studentViolations = DB::select("
@@ -151,11 +148,11 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId])[0]->violation_count;
 
         if ($studentViolations > 0) {
-            $this->error("❌ CRITICAL: {$studentViolations} students have >1 exam/day!");
+            $this->error("[CRITICAL] Student Scheduling Conflict: {$studentViolations} students scheduled for multiple exams on same day");
             $this->results['failed']++;
             $this->results['critical']++;
         } else {
-            $this->info("✅ Max 1 exam/student/day (PASS)");
+            $this->info("[PASS] Student Scheduling: Maximum 1 exam per student per day");
             $this->results['passed']++;
         }
 
@@ -178,60 +175,71 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId])[0]->violation_count;
 
         if ($profViolations > 0) {
-            $this->error("❌ CRITICAL: {$profViolations} professors have >3 exams/day!");
+            $this->error("[CRITICAL] Professor Workload Violation: {$profViolations} professors assigned more than 3 exams per day");
             $this->results['failed']++;
             $this->results['critical']++;
         } else {
-            $this->info("✅ Max 3 exams/professor/day (PASS)");
+            $this->info("[PASS] Professor Workload: Maximum 3 exams per professor per day");
             $this->results['passed']++;
         }
 
-        // CONSTRAINT 3: Room capacity respected
-        $capacityViolations = DB::select("
-            SELECT COUNT(*) as cnt
-            FROM scheduled_exam_rooms ser
-            JOIN rooms r ON r.id = ser.room_id
-            JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id
-            WHERE se.exam_session_id = ? AND ser.seats_allocated > r.capacity
-        ", [$this->examSessionId])[0]->cnt;
-
-        if ($capacityViolations > 0) {
-            $this->error("❌ CRITICAL: {$capacityViolations} room capacity violations!");
-            $this->results['failed']++;
-            $this->results['critical']++;
-        } else {
-            $this->info("✅ Room capacity respected (PASS)");
-            $this->results['passed']++;
-        }
-
-        // CONSTRAINT 4: No room double-booking
-        $doubleBookings = DB::select("
+        // CONSTRAINT 3: Room capacity not exceeded
+        $capacityOverflows = DB::select("
             SELECT COUNT(*) as cnt
             FROM (
                 SELECT 
                     r.id,
-                    ts.id,
-                    COUNT(DISTINCT se.id) as concurrent_exams
+                    r.code,
+                    r.capacity,
+                    ts.id as time_slot_id,
+                    ts.exam_date,
+                    ts.slot_index,
+                    SUM(ser.seats_allocated) as total_allocated,
+                    COUNT(DISTINCT se.id) as exam_count
                 FROM scheduled_exam_rooms ser
                 JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id
                 JOIN time_slots ts ON ts.id = se.time_slot_id
                 JOIN rooms r ON r.id = ser.room_id
                 WHERE se.exam_session_id = ?
-                GROUP BY r.id, ts.id
-                HAVING COUNT(DISTINCT se.id) > 1
-            ) conflicts
+                GROUP BY r.id, r.code, r.capacity, ts.id, ts.exam_date, ts.slot_index
+                HAVING SUM(ser.seats_allocated) > r.capacity
+            ) overflow
         ", [$this->examSessionId])[0]->cnt;
 
-        if ($doubleBookings > 0) {
-            $this->error("❌ CRITICAL: {$doubleBookings} room double-bookings!");
+        if ($capacityOverflows > 0) {
+            $this->error("[CRITICAL] Room Capacity Exceeded: {$capacityOverflows} room/time slot combinations over capacity");
             $this->results['failed']++;
             $this->results['critical']++;
+
+            $details = DB::select("
+                SELECT 
+                    r.code,
+                    r.capacity,
+                    ts.exam_date,
+                    ts.slot_index,
+                    SUM(ser.seats_allocated) as total_allocated
+                FROM scheduled_exam_rooms ser
+                JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id
+                JOIN time_slots ts ON ts.id = se.time_slot_id
+                JOIN rooms r ON r.id = ser.room_id
+                WHERE se.exam_session_id = ?
+                GROUP BY r.id, r.code, r.capacity, ts.id, ts.exam_date, ts.slot_index
+                HAVING SUM(ser.seats_allocated) > r.capacity
+                LIMIT 3
+            ", [$this->examSessionId]);
+
+            $this->line("");
+            $this->line("   Examples of capacity violations:");
+            foreach ($details as $d) {
+                $overflow = $d->total_allocated - $d->capacity;
+                $this->line("   - Room {$d->code} on {$d->exam_date} slot {$d->slot_index}: {$d->total_allocated}/{$d->capacity} seats (+{$overflow} overflow)");
+            }
         } else {
-            $this->info("✅ No room double-bookings (PASS)");
+            $this->info("[PASS] Room Capacity: All rooms within maximum capacity");
             $this->results['passed']++;
         }
 
-        // CONSTRAINT 5: Professor department match
+        // CONSTRAINT 4: Professor department match
         $deptMismatch = DB::select("
             SELECT COUNT(*) as cnt
             FROM scheduled_exam_professors sep
@@ -243,21 +251,19 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId])[0]->cnt;
 
         if ($deptMismatch > 0) {
-            $this->warn("⚠️  {$deptMismatch} professors assigned outside their department");
+            $this->warn("[WARN] Department Alignment: {$deptMismatch} professors assigned outside their department");
             $this->results['warnings']++;
         } else {
-            $this->info("✅ All professors match exam department (PASS)");
+            $this->info("[PASS] Department Alignment: All professors match exam department");
             $this->results['passed']++;
         }
     }
 
-    // ============================================
-    // TEST 3: SOFT CONSTRAINTS (OPTIMIZATION)
-    // ============================================
     private function testSoftConstraints(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 3: SOFT CONSTRAINTS (Optimization Quality) ═══\n");
+        $this->line("");
+        $this->info("3. OPTIMIZATION QUALITY METRICS");
+        $this->line(str_repeat("-", 60));
 
         // Department priority for rooms
         $deptPriority = DB::select("
@@ -273,19 +279,26 @@ class ExamsTestComplete extends Command
             WHERE se.exam_session_id = ?
         ", [$this->examSessionId])[0];
 
-        $ownPct = round($deptPriority->own_dept / $deptPriority->total * 100, 1);
-        $overflowPct = round($deptPriority->overflow / $deptPriority->total * 100, 1);
+        $totalRooms = (int) ($deptPriority->total ?? 0);
+        if ($totalRooms === 0) {
+            $ownPct = 0.0;
+            $overflowPct = 0.0;
+        } else {
+            $ownPct = round($deptPriority->own_dept / $totalRooms * 100, 1);
+            $overflowPct = round($deptPriority->overflow / $totalRooms * 100, 1);
+        }
 
-        $this->line("Department Room Priority:");
-        $this->line("  Own department:  {$deptPriority->own_dept} ({$ownPct}%)");
-        $this->line("  Shared rooms:    {$deptPriority->shared}");
-        $this->line("  Overflow:        {$deptPriority->overflow} ({$overflowPct}%)");
+        $this->line("Room Assignment Priority:");
+        $this->line("   Department-owned rooms: {$deptPriority->own_dept} ({$ownPct}%)");
+        $this->line("   Shared rooms: {$deptPriority->shared}");
+        $this->line("   Other department rooms: {$deptPriority->overflow} ({$overflowPct}%)");
+        $this->line("");
 
         if ($ownPct > $overflowPct) {
-            $this->info("✅ Department priority working correctly");
+            $this->info("[PASS] Room Priority: Department rooms prioritized correctly");
             $this->results['passed']++;
         } else {
-            $this->warn("⚠️  Department priority may not be optimal");
+            $this->warn("[WARN] Room Priority: Could improve department room allocation");
             $this->results['warnings']++;
         }
 
@@ -294,8 +307,7 @@ class ExamsTestComplete extends Command
             SELECT 
                 MIN(cnt) as min_load,
                 MAX(cnt) as max_load,
-                ROUND(AVG(cnt), 2) as avg_load,
-                ROUND(STDDEV(cnt), 2) as stddev_load
+                ROUND(AVG(cnt), 2) as avg_load
             FROM (
                 SELECT p.id, COUNT(*) as cnt
                 FROM professors p
@@ -308,28 +320,27 @@ class ExamsTestComplete extends Command
 
         $variance = $workloadStats->max_load - $workloadStats->min_load;
 
-        $this->line("\nProfessor Workload Balance:");
-        $this->line("  Min: {$workloadStats->min_load}");
-        $this->line("  Max: {$workloadStats->max_load}");
-        $this->line("  Avg: {$workloadStats->avg_load}");
-        $this->line("  Variance: {$variance}");
+        $this->line("Professor Workload Distribution:");
+        $this->line("   Minimum surveillances: {$workloadStats->min_load}");
+        $this->line("   Maximum surveillances: {$workloadStats->max_load}");
+        $this->line("   Average surveillances: {$workloadStats->avg_load}");
+        $this->line("   Workload variance: {$variance}");
+        $this->line("");
 
         if ($variance <= 5) {
-            $this->info("✅ Workload well balanced (variance ≤5)");
+            $this->info("[PASS] Workload Balance: Well distributed (variance within acceptable range)");
             $this->results['passed']++;
         } else {
-            $this->warn("⚠️  High workload variance (>{$variance})");
+            $this->warn("[WARN] Workload Balance: High variance detected (variance: {$variance})");
             $this->results['warnings']++;
         }
     }
 
-    // ============================================
-    // TEST 4: PERFORMANCE REQUIREMENTS
-    // ============================================
     private function testPerformance(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 4: PERFORMANCE (<45s requirement) ═══\n");
+        $this->line("");
+        $this->info("4. SYSTEM PERFORMANCE");
+        $this->line(str_repeat("-", 60));
 
         $perfLog = DB::table('performance_logs')
             ->where('exam_session_id', $this->examSessionId)
@@ -337,32 +348,31 @@ class ExamsTestComplete extends Command
             ->first();
 
         if (!$perfLog) {
-            $this->warn("⚠️  No performance log found");
+            $this->warn("[WARN] No performance data recorded");
             $this->results['warnings']++;
             return;
         }
 
-        $this->line("Algorithm: {$perfLog->algorithm}");
-        $this->line("Exam count: {$perfLog->exam_count}");
-        $this->line("Duration: {$perfLog->duration_seconds}s");
-        $this->line("Success: " . ($perfLog->success ? 'Yes' : 'No'));
+        $this->line("Algorithm used: {$perfLog->algorithm}");
+        $this->line("Exams processed: {$perfLog->exam_count}");
+        $this->line("Processing time: {$perfLog->duration_seconds} seconds");
+        $this->line("Status: " . ($perfLog->success ? 'Successful' : 'Failed'));
+        $this->line("");
 
         if ($perfLog->duration_seconds < 45) {
-            $this->info("✅ Performance target achieved (<45s)");
+            $this->info("[PASS] Performance Target: Completed under 45 seconds ({$perfLog->duration_seconds}s)");
             $this->results['passed']++;
         } else {
-            $this->error("❌ Performance target missed (≥45s)");
+            $this->error("[FAIL] Performance Target: Exceeded 45 second limit ({$perfLog->duration_seconds}s)");
             $this->results['failed']++;
         }
     }
 
-    // ============================================
-    // TEST 5: ROOM USAGE EFFICIENCY
-    // ============================================
     private function testRoomUsage(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 5: ROOM USAGE EFFICIENCY ═══\n");
+        $this->line("");
+        $this->info("5. RESOURCE UTILIZATION");
+        $this->line(str_repeat("-", 60));
 
         $roomStats = DB::select("
             SELECT 
@@ -377,26 +387,25 @@ class ExamsTestComplete extends Command
 
         $utilizationPct = round($roomStats->used_rooms / $roomStats->total_rooms * 100, 1);
 
-        $this->line("Total rooms: {$roomStats->total_rooms}");
-        $this->line("Used rooms: {$roomStats->used_rooms} ({$utilizationPct}%)");
-        $this->line("Avg fill rate: {$roomStats->avg_fill_rate}%");
+        $this->line("Total available rooms: {$roomStats->total_rooms}");
+        $this->line("Rooms utilized: {$roomStats->used_rooms} ({$utilizationPct}%)");
+        $this->line("Average room fill rate: {$roomStats->avg_fill_rate}%");
+        $this->line("");
 
         if ($utilizationPct >= 80 && $roomStats->avg_fill_rate >= 60) {
-            $this->info("✅ Room usage efficient");
+            $this->info("[PASS] Room Efficiency: Good utilization rate");
             $this->results['passed']++;
         } else {
-            $this->warn("⚠️  Room usage could be improved");
+            $this->warn("[WARN] Room Efficiency: Utilization could be improved");
             $this->results['warnings']++;
         }
     }
 
-    // ============================================
-    // TEST 6: PROFESSOR WORKLOAD COMPLIANCE
-    // ============================================
     private function testProfessorWorkload(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 6: PROFESSOR WORKLOAD DISTRIBUTION ═══\n");
+        $this->line("");
+        $this->info("6. PROFESSOR ASSIGNMENT ANALYSIS");
+        $this->line(str_repeat("-", 60));
 
         $stats = DB::select("
             SELECT 
@@ -417,33 +426,31 @@ class ExamsTestComplete extends Command
 
         $assignmentRate = $stats->total_profs > 0 ? round($stats->assigned_profs / $stats->total_profs * 100, 1) : 0;
 
-        $this->line("Total professors: {$stats->total_profs}");
-        $this->line("Assigned professors: {$stats->assigned_profs} ({$assignmentRate}%)");
-        $this->line("Total surveillances: {$stats->total_surveillances}");
-        $this->line("Avg per assigned prof: {$stats->avg_surveillances}");
+        $this->line("Total active professors: {$stats->total_profs}");
+        $this->line("Professors assigned: {$stats->assigned_profs} ({$assignmentRate}%)");
+        $this->line("Total surveillance assignments: {$stats->total_surveillances}");
+        $this->line("Average per assigned professor: {$stats->avg_surveillances}");
+        $this->line("");
 
         if ($assignmentRate >= 70) {
-            $this->info("✅ Good professor utilization");
+            $this->info("[PASS] Professor Utilization: Good assignment rate");
             $this->results['passed']++;
         } else {
-            $this->warn("⚠️  Low professor utilization (<70%)");
+            $this->warn("[WARN] Professor Utilization: Low assignment rate ({$assignmentRate}%)");
             $this->results['warnings']++;
         }
     }
 
-    // ============================================
-    // TEST 7: STUDENT DISTRIBUTION
-    // ============================================
     private function testStudentDistribution(): void
     {
-        $this->newLine();
-        $this->info("═══ TEST 7: STUDENT EXAM DISTRIBUTION ═══\n");
+        $this->line("");
+        $this->info("7. STUDENT LOAD DISTRIBUTION");
+        $this->line(str_repeat("-", 60));
 
         $dailyDistribution = DB::select("
             SELECT 
                 ts.exam_date,
-                COUNT(DISTINCT s.id) as students_with_exams,
-                COUNT(*) as total_exams_taken
+                COUNT(DISTINCT s.id) as students_with_exams
             FROM students s
             JOIN inscriptions i ON i.student_id = s.id
             JOIN scheduled_exams se ON se.module_id = i.module_id AND se.group_id = s.group_id
@@ -454,7 +461,7 @@ class ExamsTestComplete extends Command
         ", [$this->examSessionId]);
 
         if (empty($dailyDistribution)) {
-            $this->warn("⚠️  No student distribution data");
+            $this->warn("[WARN] No student distribution data available");
             $this->results['warnings']++;
             return;
         }
@@ -463,28 +470,26 @@ class ExamsTestComplete extends Command
         $stddev = $this->calculateStdDev($studentCounts);
         $avg = array_sum($studentCounts) / count($studentCounts);
 
-        $this->line("Average students/day: " . round($avg, 0));
-        $this->line("Std deviation: " . round($stddev, 1));
-        $this->line("Days with exams: " . count($dailyDistribution));
+        $this->line("Average students per day: " . round($avg, 0));
+        $this->line("Distribution variance: " . round($stddev, 1));
+        $this->line("Total exam days: " . count($dailyDistribution));
+        $this->line("");
 
         if ($avg > 0 && $stddev / $avg < 0.3) {
-            $this->info("✅ Well-balanced student distribution");
+            $this->info("[PASS] Student Distribution: Well balanced across exam period");
             $this->results['passed']++;
         } else {
-            $this->warn("⚠️  Uneven student distribution");
+            $this->warn("[WARN] Student Distribution: Uneven distribution detected");
             $this->results['warnings']++;
         }
     }
 
-    // ============================================
-    // FINAL REPORT
-    // ============================================
     private function displayFinalReport(): void
     {
-        $this->newLine(2);
-        $this->info("╔═══════════════════════════════════════════════════════════╗");
-        $this->info("║                    FINAL TEST REPORT                      ║");
-        $this->info("╚═══════════════════════════════════════════════════════════╝\n");
+        $this->line("");
+        $this->line(str_repeat("=", 60));
+        $this->info("VALIDATION SUMMARY");
+        $this->line(str_repeat("=", 60));
 
         $passed = $this->results['passed'];
         $failed = $this->results['failed'];
@@ -492,25 +497,28 @@ class ExamsTestComplete extends Command
         $critical = $this->results['critical'];
         $total = $passed + $failed + $warnings;
 
-        $this->line("Tests Passed:   {$passed}");
-        $this->line("Tests Failed:   {$failed}" . ($critical > 0 ? " ({$critical} CRITICAL)" : ""));
-        $this->line("Warnings:       {$warnings}");
-        $this->line("Total Tests:    {$total}");
-
-        $this->newLine();
+        $this->line("");
+        $this->line("Tests Passed: {$passed}");
+        $this->line("Tests Failed: {$failed}" . ($critical > 0 ? " (including {$critical} critical)" : ""));
+        $this->line("Warnings: {$warnings}");
+        $this->line("Total Checks: {$total}");
+        $this->line("");
 
         if ($critical > 0) {
-            $this->error("❌ CRITICAL FAILURES DETECTED - Schedule is INVALID!");
-            $this->line("   Fix critical constraint violations before deployment.");
+            $this->error("STATUS: INVALID - Critical constraint violations detected");
+            $this->line("ACTION REQUIRED: Fix critical issues before deploying schedule");
         } elseif ($failed > 0) {
-            $this->error("❌ Some tests failed - Schedule needs improvement");
+            $this->error("STATUS: NEEDS IMPROVEMENT - Some tests failed");
+            $this->line("RECOMMENDATION: Review and address failed checks");
         } elseif ($warnings > 0) {
-            $this->warn("⚠️  Schedule is VALID but has optimization opportunities");
+            $this->warn("STATUS: VALID WITH WARNINGS - Schedule is functional");
+            $this->line("RECOMMENDATION: Review warnings for optimization opportunities");
         } else {
-            $this->info("✅ ALL TESTS PASSED - Schedule is production-ready!");
+            $this->info("STATUS: PRODUCTION READY - All validation checks passed");
+            $this->line("RESULT: Schedule is ready for deployment");
         }
 
-        $this->newLine();
+        $this->line("");
     }
 
     private function calculateStdDev(array $values): float
