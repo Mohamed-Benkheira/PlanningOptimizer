@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Filament\Pages\GroupExamScheduleExplorer;
+use Illuminate\Support\Facades\Artisan;
+
 
 Route::get('/', function () {
     return view('welcome');
