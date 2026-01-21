@@ -26,8 +26,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Department::class, DepartmentPolicy::class);
         Gate::policy(\App\Models\Student::class, \App\Policies\StudentPolicy::class);
 
-        if (app()->environment('production')) {
-            URL::forceScheme('https');
-        }
+
     }
 }
