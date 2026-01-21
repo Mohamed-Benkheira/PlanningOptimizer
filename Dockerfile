@@ -21,7 +21,7 @@ COPY . .
 RUN composer install --no-dev --optimize-autoloader
 
 # Expose port Railway will use
-EXPOSE 8080
+EXPOSE 8000
 
 # Start Laravel
 CMD php artisan serve --host=0.0.0.0 --port=$PORT
