@@ -28,3 +28,14 @@
     [34mupdated_at[39m: "[32m2026-01-19 23:04:16[39m",
   }
 
+[90m= [39m[34;4mApp\Models\User[39;24m {#7525
+    [34mname[39m: "[32mProf. John Doe[39m",
+    [34memail[39m: "[32mprofessor@university.edu[39m",
+    #[33mpassword[39m: "[32m$2y$12$8obCHPWj3tGbriEnrOAKw.D.QtNlgNzuAl9e1/vzDJljqH7bgWk4G[39m",
+    [34mrole[39m: "[32mprofessor[39m",
+    [34mdepartment_id[39m: [35m1[39m,
+    [34mupdated_at[39m: "[32m2026-01-22 00:19:22[39m",
+    [34mcreated_at[39m: "[32m2026-01-22 00:19:22[39m",
+    [34mid[39m: [35m6[39m,
+  }
+

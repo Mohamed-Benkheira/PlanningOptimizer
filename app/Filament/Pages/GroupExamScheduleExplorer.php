@@ -28,7 +28,6 @@ class GroupExamScheduleExplorer extends Page implements HasTable
 
     // THIS IS KEY: Use simple layout instead of Filament's default
 
-    protected static bool $shouldRegisterNavigation = false;
 
     public ?int $exam_session_id = null;
     public ?int $department_id = null;
