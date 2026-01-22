@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Traits\DepartmentScoped;
 use Illuminate\Database\Eloquent\Model;
 
 class ExamSession extends Model
 {
-
+    use DepartmentScoped;
     protected $guarded = [];
     protected $casts = [
         'approved_at' => 'datetime',
@@ -40,4 +41,10 @@ class ExamSession extends Model
     {
         return $this->approval_status === 'rejected';
     }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
+
 }

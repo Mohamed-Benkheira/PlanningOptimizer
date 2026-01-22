@@ -14,9 +14,10 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-
+use UnitEnum;
 class ScheduledExamResource extends Resource
 {
+    protected static UnitEnum|string|null $navigationGroup = 'Exam Scheduling'; // Added 'static' here
     protected static ?string $model = ScheduledExam::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

@@ -43,6 +43,7 @@ class InscriptionResource extends Resource
         ];
     }
 
+
     public static function getPages(): array
     {
         return [
@@ -51,18 +52,6 @@ class InscriptionResource extends Resource
             'edit' => EditInscription::route('/{record}/edit'),
         ];
     }
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-        $user = auth()->user();
 
-        if ($user->role === 'department_head' && $user->department_id) {
-            return $query->whereHas('student.group.specialty', function ($q) use ($user) {
-                $q->where('department_id', $user->department_id);
-            });
-        }
-
-        return $query;
-    }
 
 }

@@ -51,19 +51,6 @@ class ExamSessionResource extends Resource
         ];
     }
 
-    public static function getEloquentQuery(): Builder
-    {
-        $query = parent::getEloquentQuery();
-        $user = auth()->user();
 
-        if ($user->isDepartmentHead()) {
-            // Correct Scoping: Department -> Specialty -> Module -> ExamSession
-            return $query->whereHas('module.specialty', function ($q) use ($user) {
-                $q->where('department_id', $user->department_id);
-            });
-        }
-
-        return $query;
-    }
 
 }

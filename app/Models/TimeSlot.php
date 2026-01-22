@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Traits\DepartmentScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 class TimeSlot extends Model
 {
+    use DepartmentScoped;
     protected $table = 'time_slots';
 
     protected $fillable = [

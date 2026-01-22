@@ -13,9 +13,11 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-
+use UnitEnum;
 class TimeSlotResource extends Resource
 {
+    protected static UnitEnum|string|null $navigationGroup = 'Exam Scheduling'; // Added 'static' here
+
     protected static ?string $model = TimeSlot::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

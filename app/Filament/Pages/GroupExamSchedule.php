@@ -12,6 +12,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use BackedEnum;
+use UnitEnum;
 
 class GroupExamSchedule extends Page implements HasTable
 {
@@ -20,6 +21,7 @@ class GroupExamSchedule extends Page implements HasTable
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
 
     protected string $view = 'filament.pages.group-exam-schedule';
+    protected static UnitEnum|string|null $navigationGroup = 'Exam Scheduling'; // Added 'static' here
 
     protected static ?string $navigationLabel = 'Group Exam Schedule';
 

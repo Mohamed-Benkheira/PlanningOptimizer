@@ -17,11 +17,14 @@ use BackedEnum;
 class ExamScheduleGenerator extends Page implements HasForms
 {
     use InteractsWithForms;
-
+    public static function shouldRegisterNavigation(): bool
+    {
+        return !auth()->user()?->isDepartmentHead();
+    }
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-cog-6-tooth';
     protected string $view = 'filament.pages.exam-schedule-generator';
     protected static ?string $navigationLabel = 'Generate Schedule';
-    protected static UnitEnum|string|null $navigationGroup = 'Exams & Pedagogical';
+    protected static UnitEnum|string|null $navigationGroup = 'Exam Scheduling'; // Added 'static' here
 
     public ?array $data = [];
     public ?string $output = null;

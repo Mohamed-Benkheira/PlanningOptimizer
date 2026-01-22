@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Traits\DepartmentScoped;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 
 class ScheduledExamRoom extends Model
 {
+    use DepartmentScoped;
     protected $table = 'scheduled_exam_rooms';
 
     protected $fillable = [

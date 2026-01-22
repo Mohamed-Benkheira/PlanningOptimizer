@@ -17,10 +17,12 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-
+use UnitEnum;
 class GroupExamScheduleExplorer extends Page implements HasTable
 {
     use InteractsWithTable;
+    protected static ?int $navigationSort = 1;
+    protected static UnitEnum|string|null $navigationGroup = 'Exam Scheduling'; // Added 'static' here
 
     protected static ?string $navigationLabel = 'Group Schedule (Explorer)';
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';

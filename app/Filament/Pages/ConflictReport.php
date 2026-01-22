@@ -9,6 +9,7 @@ use BackedEnum;
 use UnitEnum;
 class ConflictReport extends Page
 {
+
     protected string $view = 'filament.pages.conflict-report';
 
     protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-exclamation-triangle';

@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Traits\DepartmentScoped;
 use Illuminate\Database\Eloquent\Model;
 
 class Inscription extends Model
 {
+    use DepartmentScoped;
     protected $guarded = [];
 
     public function student()
