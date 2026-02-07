@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use App\Http\Middleware\EnsureExamSessionApproved;
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register the middleware alias
         $middleware->alias([
             'planning.access' => \App\Http\Middleware\EnsureUserCanAccessPlanning::class,
+            'session.approved' => EnsureExamSessionApproved::class,
+
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

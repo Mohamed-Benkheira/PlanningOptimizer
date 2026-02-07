@@ -8,11 +8,14 @@ class ExamStatisticsService
 {
     public function getRoomUsageStats(int $examSessionId, ?int $departmentId = null)
     {
+        $driver = DB::connection()->getDriverName();
+        $castSyntax = $driver === 'pgsql' ? '::numeric' : ' * 1.0';
+
         $sql = "
             SELECT 
                 COUNT(DISTINCT r.id) as total_rooms,
                 COUNT(DISTINCT CASE WHEN ser.id IS NOT NULL THEN r.id END) as used_rooms,
-                ROUND(AVG(CAST(ser.seats_allocated AS NUMERIC) / NULLIF(r.capacity, 0) * 100), 1) as avg_fill_rate
+                ROUND(AVG(ser.seats_allocated{$castSyntax} / NULLIF(r.capacity, 0) * 100), 1) as avg_fill_rate
             FROM rooms r
             LEFT JOIN scheduled_exam_rooms ser ON ser.room_id = r.id
             LEFT JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id AND se.exam_session_id = ?
@@ -250,6 +253,9 @@ class ExamStatisticsService
      */
     public function getDepartmentBreakdown(int $examSessionId, ?int $departmentId = null)
     {
+        $driver = DB::connection()->getDriverName();
+        $castSyntax = $driver === 'pgsql' ? '::numeric' : ' * 1.0';
+
         $sql = "
             SELECT 
                 d.name as department_name,
@@ -257,7 +263,7 @@ class ExamStatisticsService
                 COUNT(DISTINCT se.id) as exam_count,
                 COUNT(DISTINCT i.student_id) as student_count,
                 COUNT(DISTINCT sep.professor_id) as professor_count,
-                ROUND(AVG(ser.seats_allocated::numeric / NULLIF(r.capacity, 0) * 100), 1) as avg_room_utilization
+                ROUND(AVG(ser.seats_allocated{$castSyntax} / NULLIF(r.capacity, 0) * 100), 1) as avg_room_utilization
             FROM departments d
             LEFT JOIN modules m ON m.department_id = d.id
             LEFT JOIN scheduled_exams se ON se.module_id = m.id AND se.exam_session_id = ?
@@ -319,6 +325,9 @@ class ExamStatisticsService
      */
     public function getStudentConflicts(int $examSessionId, ?int $departmentId = null)
     {
+        $driver = DB::connection()->getDriverName();
+        $aggregateFunc = $driver === 'pgsql' ? 'STRING_AGG' : 'GROUP_CONCAT';
+
         $sql = "
             SELECT 
                 s.id as student_id,
@@ -327,7 +336,7 @@ class ExamStatisticsService
                 s.last_name,
                 ts.exam_date,
                 COUNT(*) as exam_count,
-                STRING_AGG(m.name, ', ') as module_names
+                {$aggregateFunc}(m.name, ', ') as module_names
             FROM students s
             JOIN inscriptions i ON i.student_id = s.id
             JOIN scheduled_exams se ON se.module_id = i.module_id AND se.group_id = s.group_id
@@ -357,6 +366,9 @@ class ExamStatisticsService
      */
     public function getProfessorConflicts(int $examSessionId, ?int $departmentId = null)
     {
+        $driver = DB::connection()->getDriverName();
+        $aggregateFunc = $driver === 'pgsql' ? 'STRING_AGG' : 'GROUP_CONCAT';
+
         $sql = "
             SELECT 
                 p.id as professor_id,
@@ -364,7 +376,7 @@ class ExamStatisticsService
                 p.last_name,
                 ts.exam_date,
                 COUNT(*) as exam_count,
-                STRING_AGG(m.name, ', ') as module_names
+                {$aggregateFunc}(m.name, ', ') as module_names
             FROM professors p
             JOIN scheduled_exam_professors sep ON sep.professor_id = p.id
             JOIN scheduled_exams se ON se.id = sep.scheduled_exam_id
@@ -394,6 +406,9 @@ class ExamStatisticsService
      */
     public function getRoomCapacityViolations(int $examSessionId, ?int $departmentId = null)
     {
+        $driver = DB::connection()->getDriverName();
+        $aggregateFunc = $driver === 'pgsql' ? 'STRING_AGG' : 'GROUP_CONCAT';
+
         $sql = "
             SELECT 
                 r.id as room_id,
@@ -403,7 +418,7 @@ class ExamStatisticsService
                 ts.exam_date,
                 ts.starts_at,
                 SUM(ser.seats_allocated) as total_allocated,
-                STRING_AGG(m.name, ', ') as exam_names
+                {$aggregateFunc}(m.name, ', ') as exam_names
             FROM scheduled_exam_rooms ser
             JOIN scheduled_exams se ON se.id = ser.scheduled_exam_id
             JOIN time_slots ts ON ts.id = se.time_slot_id
